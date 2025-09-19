@@ -1,6 +1,6 @@
 # Electrothermal SPICE model of SNSPD
 
-## SPICE models (`snspd_photon_port.lib`, 'snspd_photon_port.lib`)
+## SPICE models (`snspd_photon_port.lib`, `snspd_photon_port.lib`)
 
 ### [SNSPD model with electrothermal feedback](https://arxiv.org/abs/2508.02791) uses an ancillary circuit to model Joule heating and thermal dissapation in the SNSPD. The model allows for simulating of device architectures such as thermally-coupled SNSPDs and thermal effects of SNAPs and PNR circuits in SPICE.
 <img width="695" height="854" alt="image" src="https://github.com/user-attachments/assets/968a2918-c7fd-4f4e-95e9-f4888057ea79" />
