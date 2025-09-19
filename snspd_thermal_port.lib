@@ -1,0 +1,162 @@
+\** SNSPDLibrary **
+
+.subckt nanowire_thermal_port gate gatereturn drain source T
++ params: Lind=200n width=100n thickness=4n
++ sheetRes=300 Tb=2 Tc=10 Jc=50G Gv=1e-9 C=0.5
+* Jc       : critical current density at Tb (A/m^2)
+* sheetRes : sheet resistance (ohms/sq)
+* Gv       : thermal boundary conductance (W/K^n)
+* Tc       : critical temperature (K)
+* Tb       : bath temperature (K)
+* C        : constriction factor
+
+*--- Dimensions ---
+.PARAM length={width*Lind/inductivity}
+.PARAM squares={length/width}
+.PARAM volume = {length*width*thickness}
+
+*--- Thermal Parameters ---
+.PARAM kappa = 0.108
+  * thermal conductivity (W/m K)
+.PARAM heatCapacity = 4400
+  * volumatric heat capacity (J/m^3 K)
+.PARAM hc = 50k
+  * thermal conductivity (W/m^2 K)
+.PARAM Td = 174
+  * Debye temperature (K)
+.PARAM Nph = 1.16121545e28
+  * phonon density (1/m^3)
+.PARAM Ne = 4.66e29
+  * electron density (1/m^3)
+.PARAM Ef = 5*1.6022e-19
+  * Fermi energy J()
+.PARAM kb = 1.380649e-23
+  * Boltzmann's constant (J)
+.PARAM alpha = {(12*(pi**4)*kb*Nph)/(5*Td**3)}
+.PARAM gamma = {pi**2*Ne*kb**2/(2*Ef)}
+  * alpha, gamma: Debye phonon / Einstein electron heat capacity parameters
+
+*--- Electrical/Superconducting Parameters ---
+.PARAM inductivity = {1.38p*sheetRes/Tc}
+  * kinetic inductance per square (H/sq)
+.PARAM  minSquares = {1/sheetRes}
+  * # squares for minimum resistance
+.PARAM Rnorm = {sheetRes*squares}
+  * units of ohms/square
+.PARAM Ic = {Jc*width*thickness*C}
+  * critical current at T = 0 (A)
+.PARAM vo ={sqrt(hc*kappa/thickness)/
++heatCapacity}
+  * characteristic velocity
+.PARAM rho ={sheetRes*thickness}
+  * resistivity (ohm m)
+
+*--- Unitless Parameters ---
+.param gain = 1e3
+* photon signal amplification factor
+.param beta = 1e2
+* heat dissapation amplification factor
+.PARAM delta = 0.01
+  * a small offset value for avoiding
+  * singularity in hotspot velocity
+  * If delta is made too large, cooling will be suppressed and the
+  * nanowire will be more likely to latch (in simulation).
+  * It's important to note that delta is only for convenience and
+  * assuring convergence of the model, and does not correspond to any
+  * physical parameter or process in the device
+
+*--- Numerical helper parameters ---
+.PARAM Ind_Z_max = 1e6
+* Max inductor impedance (ohms), a few orders of magnitude above the largest expected
+* impedance as calculated by Lind_x*2*pi*f_max where f_max = 0.31/t_rise_min
+* is the maximum frequency in Hz based on the fastest dynamics of the
+* circuit in seconds
+* For normal nTron inductors (e.g. 200 squares of 20pH/sq), a rise time of
+* 10ps gives about 1kohm max impedance, so 1e6 is acceptable
+
+******************************
+** 		 MAIN CIRCUIT 	 	**
+******************************
+
+* channel inductor
+L_kinetic drain n_hs Flux=({Lind}/(2.0*cos(0.67*
++asin(0.6*x/v(I_sw)))-1))*x Rser = 1e-24 Rpar = {Ind_Z_max}
+
+* hotspot resistance, where v(r_hs) is resistance of hotspot
+B_Rhs n_hs source V=IF(v(r_hs)>0, v(r_hs)*i(L_kinetic), 0)
+
+* hotspot resistor limiter (bounded hotspot growth)
+R_limiter n_hs source {Rnorm}
+
+* photon arrival sense resistor
+R_ph gate gatereturn 1e-100
+
+
+** --- STATE VARIABLE SUBCIRCUIT --- **
+
+* state tracker, v(N_state)= 0 if wire s/c, v(N_state)= 0 if normal
+B_state N_state 0 V=if((abs(i(L_kinetic))>v(I_sw))|(abs(v(n_hs)-v(source))>v(Vthresh)),1,0)
+
+
+** --- HOTSPOT GROWTH INTEGRATOR SUBCIRCUIT --- **
+
+* hotspot grows/shrinks if in normal state and either hotspot < wire length or I < retrapping current
+B_int r_hs 0 V={2*sheetres*vo}/{width}*v(vhs)
+
+
+** --- RC NONLINEAR THERMAL NETWORK SUBCIRCUIT --- ***
+
+* heating sources
+B_ph     0 Ttherm I=abs(i(R_ph))*{gain}
+B_joule  0 Ttherm I=abs{v(r_hs)*(I(L_kinetic)**2)*beta}
+
+* cooling (phonon boundary)
+.param n = 1
+B_therm Ttherm 0 I={(v(T)**n - {Tb}**n) * Gv}
+
+
+* heat capacity contributions
+B_cap_ph Ttherm 0 I = gamma*V(T)*{volume}*ddt(v(T))
+B_cap_n Ttherm 0 I = (v(norm_region)*{alpha}*v(T)**3)*ddt(v(T))
+B_cap_s1 Ttherm 0 I = ({volume}-V(norm_region))*if(v(T) < {0.2720*Tc},({gamma}*{Tc}*(8.5*exp(-1.44/(v(T)/{Tc}))))*ddt(v(T)),0)
+B_cap_s2 Ttherm 0 I = ({volume}-V(norm_region))*if(v(T) > {0.2720*Tc},({gamma}*{Tc}*(-0.1129-0.1827*(v(T)/{Tc})+2.775*(v(T)/{Tc})**2))*ddt(v(T)),0)
+
+* device temperature node
+V_temp T Ttherm DC {Tb}
+
+
+** --- SWITCHING CURRENT --- **
+
+B_I_sw I_sw 0 V=if(v(T) < {Tc}, {Ic}*(1-(V(T)/{Tc})**2)**(3/2), 0)
+* used for plotting, can comment out
+B_Isw Isw 0 I = v(I_sw)
+V_Isw Isw 0 DC 0
+
+
+** --- RETRAPPING CURRENT --- **
+B_I_r I_r 0 v=min(sqrt(2/V(psi))*v(I_sw), v(I_sw))
+* used for plotting, can comment out
+B_Ir Ir 0 I = v(I_r)
+V_Ir Ir 0 DC 0
+
+
+** --- THRESHOLD VOLTAGE --- **
+B_Vthresh Vthresh 0 V={minSquares*sheetRes}*v(I_sw)
+
+
+** --- STECKLY PARAMETER --- **
+B_psi psi 0 V=({sheetRes}*(v(I_sw)/{width*C})**2)/
++({hc}*({Tc}-V(T)))
+
+
+** --- HOTSPOT DYNAMICS --- **
+B_n norm_region 0 V={width*thickness}*v(vhs)
+B_vhs vhs 0 V=sdt(if(v(N_state) & ((v(r_hs)<{Rnorm}) | (abs(i(L_kinetic))<v(I_r))),
++((v(psi)*(i(L_kinetic)/v(I_sw))**2-2)
++/((sqrt(((v(psi)*(i(L_kinetic)/v(I_sw))**2-1)+abs(v(psi)*
++(i(L_kinetic)/v(I_sw))**2-1))/2)+{delta}))),0)
++, 0, V(N_state)<0.5)
+
+.backanno
+.ends nanowire_thermal_port
+
