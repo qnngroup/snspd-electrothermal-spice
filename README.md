@@ -36,3 +36,6 @@ This file includes 1 model `nanowire_thermal_port`, which is the same as `nanowi
 -  <img width="1397" height="411" alt="image" src="https://github.com/user-attachments/assets/cf4baecd-f72f-4019-bc56-060caeee2bef" />
 -  `snspd-thermal-coupling.asc`: models the thermal coupling of two SNSPDs for applciations such as [spatially resolved SNSPD arrays](https://pubs.acs.org/doi/10.1021/acs.nanolett.0c00246)
 -  <img width="1916" height="870" alt="image" src="https://github.com/user-attachments/assets/ed7da681-1cc4-4221-bf41-d407b4dc83d1" />
+
+### Figures
+Each figure reported in [https://arxiv.org/abs/2508.02791](https://arxiv.org/abs/2508.02791) can be reconstructed by executing its associated script (e.g., Fig1.py for Figure 1).
