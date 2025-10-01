@@ -116,17 +116,20 @@ B_therm Ttherm 0 I={(v(T)**n - {Tb}**n) * Gv}
 
 
 * heat capacity contributions
-B_cap_ph Ttherm 0 I = gamma*V(T)*{volume}*ddt(v(T))
-B_cap_n Ttherm 0 I = (v(norm_region)*{alpha}*v(T)**3)*ddt(v(T))
+
+B_cap_ph Ttherm 0 I = ({volume}*{alpha}*v(T)**3)*ddt(v(T))
+B_cap_n Ttherm 0 I = gamma*V(T)*v(norm_region)*ddt(v(T))
 B_cap_s1 Ttherm 0 I = ({volume}-V(norm_region))*if(v(T) < {0.2720*Tc},({gamma}*{Tc}*(8.5*exp(-1.44/(v(T)/{Tc}))))*ddt(v(T)),0)
 B_cap_s2 Ttherm 0 I = ({volume}-V(norm_region))*if(v(T) > {0.2720*Tc},({gamma}*{Tc}*(-0.1129-0.1827*(v(T)/{Tc})+2.775*(v(T)/{Tc})**2))*ddt(v(T)),0)
-
 * device temperature node
 V_temp T Ttherm DC {Tb}
 
+** for checking
+*V_alpha alpha_node 0 {volume*alpha}
+*V_gamma gamma_node 0 {volume*gamma}
+
 
 ** --- SWITCHING CURRENT --- **
-
 B_I_sw I_sw 0 V=if(v(T) < {Tc}, {Ic}*(1-(V(T)/{Tc})**2)**(3/2), 0)
 * used for plotting, can comment out
 B_Isw Isw 0 I = v(I_sw)
